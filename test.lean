@@ -18,6 +18,11 @@ structure Policy :=
   right : Float
 deriving Repr
 
+instance : Inhabited Policy :=
+  ⟨
+    { up := 0.25, down := 0.25, left := 0.25, right := 0.25}
+  ⟩
+
 /-
 An Enumeration for movement direction
 -/
@@ -38,7 +43,7 @@ structure GridWorld :=
   stateValues := mkArray (nRows * nColumns) (0 : Float) -- Creating a array of state values
   -- Start the policy by default of moving in all directions (actions) with an equal probability
   -- for all states
-  π := mkArray (nRows * nColumns) ({up := 0.25, down := 0.25, left := 0.25, right := 0.25} : Policy)
+  policy := mkArray (nRows * nColumns) ({up := 0.25, down := 0.25, left := 0.25, right := 0.25} : Policy)
 deriving Repr
 
 /-
@@ -58,11 +63,11 @@ def td₀ (Vs : Float) (Vs' : Float) (R : Float) (α : Float) (γ : Float) : Flo
 /-
 Translates the Agent position to the values in a linear array
 -/
-def position (a : Agent) : Int :=
-  if a.row < a.states.nRows && a.column < a.states.nColumns then
-    a.row * a.states.nColumns + a.column
+def position (r c nRows nColumns : Nat) : Nat :=
+  if r < nRows && c < nColumns then
+    r * nColumns + c
   else
-    -1
+    999
 
 
 /-
@@ -241,8 +246,14 @@ def myAgent : Agent := {row := 3, column := 2, states := {nRows := 5, nColumns :
 def myAgent2 : Agent := {row := 0, column := 1, states := {nRows := 4, nColumns := 4}}
 
 #eval myAgent
-#eval gridWorld35 myAgent Move.down
-#eval gridWorld41 myAgent2 Move.down
+#eval gridWorld35 {row := 4, column := 4, states := {nRows := 5, nColumns := 5}} Move.up
+#eval gridWorld35 {row := 4, column := 4, states := {nRows := 5, nColumns := 5}} Move.down
+#eval gridWorld35 {row := 4, column := 4, states := {nRows := 5, nColumns := 5}} Move.left
+#eval gridWorld35 {row := 4, column := 4, states := {nRows := 5, nColumns := 5}} Move.right
+#eval gridWorld41 {row := 3, column := 3, states := {nRows := 4, nColumns := 4}} Move.up
+#eval gridWorld41 {row := 3, column := 3, states := {nRows := 4, nColumns := 4}} Move.down
+#eval gridWorld41 {row := 3, column := 3, states := {nRows := 4, nColumns := 4}} Move.left
+#eval gridWorld41 {row := 3, column := 3, states := {nRows := 4, nColumns := 4}} Move.right
 
 
 
@@ -255,3 +266,64 @@ def myAgent2 : Agent := {row := 0, column := 1, states := {nRows := 4, nColumns 
 #eval uniformFloat 10000
 #eval uniformFloat 10000
 #eval uniformFloat 10000
+
+def loopExample (n : Nat) : Nat :=
+match n with
+| 0 => 0
+| (Nat.succ n) => loopExample n + n
+
+def getAdjacent35 (a : Agent) (m : Move) (r : Nat) (c : Nat) : Float :=
+  match m with
+  | Move.up =>
+    if r = 0 then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position (r - 1) c a.states.nRows a.states.nColumns]!
+  | Move.down =>
+    if r + 1 = a.states.nRows then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position (r + 1) c a.states.nRows a.states.nColumns]!
+  | Move.left => sorry
+  | Move.right => sorry
+
+def getAdjacent41 (a : Agent) (m : Move) (r : Nat) (c : Nat) : Float :=
+  match m with
+  | Move.up =>
+    if r = 0 then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position (r - 1) c a.states.nRows a.states.nColumns]!
+  | Move.down =>
+    if r + 1 = a.states.nRows then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position (r + 1) c a.states.nRows a.states.nColumns]!
+  | Move.left =>
+    if c = 0 then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position r (c - 1) a.states.nRows a.states.nColumns]!
+  | Move.right =>
+    if c + 1 = a.states.nColumns then
+      a.states.stateValues[position r c a.states.nRows a.states.nColumns]!
+    else
+      a.states.stateValues[position r (c + 1) a.states.nRows a.states.nColumns]!
+
+
+def printRange (a : Agent) :=
+  let range : Nat := a.states.nRows * a.states.nColumns
+  for i in [0: range] do
+    let row := i / a.states.nColumns
+    let column := i % a.states.nRows
+    IO.println s!"{a.states.stateValues[i]!} {row} {column} {a.states.policy[i]!.down}"
+
+
+-- Executing the function to print values from 1 to 5
+#eval printRange myAgent
+
+
+#eval loopExample 5 -- Returns 10 (1 + 2 + 3 + 4 + 5)
+#eval getAdjacent41 myAgent Move.up 0 0
+#eval myAgent.states.policy[0].down
+#eval myAgent.states.stateValues[1]
