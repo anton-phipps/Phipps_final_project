@@ -8,15 +8,6 @@ def uniformFloat (resolution : Nat) : IO Float := do
   return n.toFloat / resolution.toFloat
 
 /-
-Translates the Agent position to the values in a linear array
--/
-def position (r c nRows nColumns : Nat) : Nat :=
-  if r < nRows && c < nColumns then
-    r * nColumns + c
-  else
-    999
-
-/-
 This structure represents the policy, esentially what are the odds of the agent
 choosing to go in the specified direction.
 -/

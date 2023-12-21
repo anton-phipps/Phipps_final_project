@@ -5,9 +5,9 @@
 
 2. First the BellmanEquationsUniformPolicy.lean file will demonstrate how to update state values through recursive functions as a form of iteration. Also having functions which return state updated state values and rewards according to the environmental behaviour.
 
-Project.lean will perform policy updates using TD(0), a temoral difference algorithm with policy updates to try and discover the optimal policy for the same two environments.
+Project.lean will perform state value estimates using TD(0), a temoral difference algorithm which learns from experience rather than a full knowledge of the environement and performing structured sweeps like in the Bellman Equation.
 
-3. Bellman Equation to $ v_{\pi} $.
+3. Bellman Equation to $ v_{\pi} $ (p. 59).
 $ v_{\pi}(s) \doteq \sum_{a} \pi (a|s) \sum_{s',r} p(s',r|s,a)[r + \gamma v_{\pi}(s')] $, for all $ s \in S $
 
 TD(0) (p. 120)
