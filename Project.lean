@@ -241,6 +241,8 @@ def gridWorld41 (a : Agent) (m : Move) : Float × Agent :=
         -1
     (reward, newAgent)
 
+def tdUpdate (a : Actor) : IO Unit :=
+  sorry
 /-
 Testing out the random generator in what will be the final project file
 -/

@@ -1,13 +1,6 @@
 import Project.Basic
 
 /-
-The Random Float generator that will give a value between 0 and 1
--/
-def uniformFloat (resolution : Nat) : IO Float := do
-  let n ← IO.rand 0 resolution
-  return n.toFloat / resolution.toFloat
-
-/-
 This structure represents the policy, esentially what are the odds of the agent
 choosing to go in the specified direction.
 -/
@@ -246,10 +239,6 @@ def gridWorld41 (a : Agent) (m : Move) : Float × Agent :=
 
 def myAgent35 : Agent := {row := 3, column := 2, states := {nRows := 5, nColumns := 5}}
 def myAgent41 : Agent := {row := 0, column := 1, states := {nRows := 4, nColumns := 4}}
-
-
-#eval uniformFloat 10000
-
 
 /-
   My absolulte value function
