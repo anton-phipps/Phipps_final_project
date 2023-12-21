@@ -1,0 +1,182 @@
+def dynamicProgramming35_old (a : Agent) (γ : Float) :=
+  let return_agent : Agent := a
+  let maxDelta : Float := 0
+  let range : Nat := return_agent.states.nRows * return_agent.states.nColumns
+  for i in [0: range] do
+    let row := i / return_agent.states.nColumns
+    let column := i % return_agent.states.nRows
+    let tempAgent : Agent := {row := row, column := column, states := return_agent.states}
+    let v : Float := tempAgent.states.stateValues[agentPosition tempAgent]!
+
+    let reward_agent := gridWorld35 tempAgent Move.up
+    let reward := reward_agent.1 -- The reward
+    let π_up : Float := tempAgent.states.policy[i]!.up -- the probability of going up
+    let v_up : Float := reward_agent.2.states.stateValues[i]!
+    let Vs_up : Float := π_up * (reward + γ * v_up)
+
+    let reward_agent := gridWorld35 tempAgent Move.down
+    let reward := reward_agent.1 -- The reward
+    let π_down : Float := tempAgent.states.policy[i]!.down -- the probability of going down
+    let v_down : Float := reward_agent.2.states.stateValues[i]!
+    let Vs_down : Float := π_down * (reward + γ * v_down)
+
+    let reward_agent := gridWorld35 tempAgent Move.left
+    let reward := reward_agent.1 -- The reward
+    let π_left : Float := tempAgent.states.policy[i]!.left -- the probability of going left
+    let v_left : Float := reward_agent.2.states.stateValues[i]!
+    let Vs_left : Float := π_left * (reward + γ * v_left)
+
+    let reward_agent := gridWorld35 tempAgent Move.right
+    let reward := reward_agent.1 -- The reward
+    let π_right : Float := tempAgent.states.policy[i]!.right -- the probability of going right
+    let v_right : Float := reward_agent.2.states.stateValues[i]!
+    let Vs_right : Float := π_right * (reward + γ * v_right)
+
+    let Vs : Float := Vs_up + Vs_down + Vs_left + Vs_right
+    let position : Nat := agentPosition tempAgent
+    let newArr := return_agent.states.stateValues.set! position Vs
+    let return_agent : Agent :=
+      {
+        row := return_agent.row,
+        column := return_agent.column,
+        states :=
+        {
+          nRows := return_agent.states.nRows,
+          nColumns := return_agent.states.nColumns,
+          policy := return_agent.states.policy,
+          stateValues := newArr
+        }
+      }
+    IO.println s!"{return_agent.states.stateValues}"
+
+
+
+partial def dynamicProgramming35_one_itteration (a : Agent) (γ : Float) : Agent :=
+  let range : Nat := a.states.nRows * a.states.nColumns
+  let rec updateAgent (i : Nat) (agent : Agent) : Agent :=
+    if i >= range then agent
+    else
+      let row := i / agent.states.nColumns
+      let column := i % agent.states.nRows
+      let tempAgent : Agent := {row := row, column := column, states := agent.states}
+      let v : Float := tempAgent.states.stateValues[agentPosition tempAgent]!
+
+      let reward_agent := gridWorld35 tempAgent Move.up
+      let reward := reward_agent.1 -- The reward
+      let π_up : Float := tempAgent.states.policy[i]!.up -- the probability of going up
+      let v_up : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_up : Float := π_up * (reward + γ * v_up)
+
+      let reward_agent := gridWorld35 tempAgent Move.down
+      let reward := reward_agent.1 -- The reward
+      let π_down : Float := tempAgent.states.policy[i]!.down -- the probability of going down
+      let v_down : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_down : Float := π_down * (reward + γ * v_down)
+
+      let reward_agent := gridWorld35 tempAgent Move.left
+      let reward := reward_agent.1 -- The reward
+      let π_left : Float := tempAgent.states.policy[i]!.left -- the probability of going left
+      let v_left : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_left : Float := π_left * (reward + γ * v_left)
+
+      let reward_agent := gridWorld35 tempAgent Move.right
+      let reward := reward_agent.1 -- The reward
+      let π_right : Float := tempAgent.states.policy[i]!.right -- the probability of going right
+      let v_right : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_right : Float := π_right * (reward + γ * v_right)
+
+      let Vs : Float := Vs_up + Vs_down + Vs_left + Vs_right
+      let position : Nat := agentPosition tempAgent
+      let newArr := agent.states.stateValues.set! position Vs
+      let newAgent : Agent :=
+        {
+          row := agent.row,
+          column := agent.column,
+          states :=
+          {
+            nRows := agent.states.nRows,
+            nColumns := agent.states.nColumns,
+            policy := agent.states.policy,
+            stateValues := newArr
+          }
+        }
+      updateAgent (i + 1) newAgent
+  updateAgent 0 a
+
+
+
+
+
+
+
+
+
+
+
+
+  partial def dynamicProgramming35 (a : Agent) (γ : Float) (maxDelta : Float) (maxIterations : Nat) : Agent :=
+  let range : Nat := a.states.nRows * a.states.nColumns
+  let rec updateAgent (i : Nat) (iteration : Nat) (agent : Agent) : Agent :=
+    if i >= range || iteration >= maxIterations then agent
+    else
+      let row := i / agent.states.nColumns
+      let column := i % agent.states.nRows
+      let tempAgent : Agent := {row := row, column := column, states := agent.states}
+      let v : Float := tempAgent.states.stateValues[agentPosition tempAgent]!
+
+      let reward_agent := gridWorld35 tempAgent Move.up
+      let reward := reward_agent.1 -- The reward
+      let π_up : Float := tempAgent.states.policy[i]!.up -- the probability of going up
+      let v_up : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_up : Float := π_up * (reward + γ * v_up)
+
+      let reward_agent := gridWorld35 tempAgent Move.down
+      let reward := reward_agent.1 -- The reward
+      let π_down : Float := tempAgent.states.policy[i]!.down -- the probability of going down
+      let v_down : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_down : Float := π_down * (reward + γ * v_down)
+
+      let reward_agent := gridWorld35 tempAgent Move.left
+      let reward := reward_agent.1 -- The reward
+      let π_left : Float := tempAgent.states.policy[i]!.left -- the probability of going left
+      let v_left : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_left : Float := π_left * (reward + γ * v_left)
+
+      let reward_agent := gridWorld35 tempAgent Move.right
+      let reward := reward_agent.1 -- The reward
+      let π_right : Float := tempAgent.states.policy[i]!.right -- the probability of going right
+      let v_right : Float := reward_agent.2.states.stateValues[i]!
+      let Vs_right : Float := π_right * (reward + γ * v_right)
+
+      let Vs : Float := Vs_up + Vs_down + Vs_left + Vs_right
+      let position : Nat := agentPosition tempAgent
+      let newArr := agent.states.stateValues.set! position Vs
+      let newAgent : Agent :=
+        {
+          row := agent.row,
+          column := agent.column,
+          states :=
+          {
+            nRows := agent.states.nRows,
+            nColumns := agent.states.nColumns,
+            policy := agent.states.policy,
+            stateValues := newArr
+          }
+        }
+      if abs (v - Vs) < maxDelta then agent else updateAgent (i + 1) (iteration + 1) newAgent
+  updateAgent 0 0 a
+
+
+
+
+  def printRange35 (a : Agent) :=
+  let range : Nat := a.states.nRows * a.states.nColumns
+  for i in [0: range] do
+    let row := i / a.states.nColumns
+    let column := i % a.states.nRows
+    let tempAgent : Agent := {row := row, column := column, states := a.states}
+    -- IO.println s!"{tempAgent.states.stateValues[i]!} {tempAgent.row} {tempAgent.column} {tempAgent.states.policy[i]!.down}"
+    IO.println s!"tempAgent: StateValue: {tempAgent.states.stateValues[i]!} Row: {tempAgent.row} Column: {tempAgent.column} Array Position: {agentPosition tempAgent}"
+    let resultant_reward_agent := gridWorld35 tempAgent Move.down
+    IO.println s!"resultant Agent: StateValue: {resultant_reward_agent.2.states.stateValues[i]!} Row: {resultant_reward_agent.2.row} Column: {resultant_reward_agent.2.column} Array Position: {agentPosition resultant_reward_agent.2}"
+    -- IO.println s!"{resultant_reward_agent.2.states.stateValues[new_pos]!} {new_pos}"
