@@ -24,6 +24,7 @@ inductive Move
 | down
 | left
 | right
+deriving Repr
 
 /-
 This structure is an internal representation of the Gridworld for an agent working through
