@@ -1,23 +1,15 @@
 /-
-  My absolulte value function
--/
-def abs (x : Float) : Float :=
-  if x < 0 then -x else x
-
-/-
 This structure represents the policy, esentially what are the odds of the agent
 choosing to go in the specified direction.
 -/
 structure Policy :=
-  up : Float
-  down : Float
   left : Float
   right : Float
 deriving Repr
 
 instance : Inhabited Policy :=
   ⟨
-    { up := 0.25, down := 0.25, left := 0.25, right := 0.25}
+    { left := 0.5, right := 0.5}
   ⟩
 
 /-
@@ -28,38 +20,22 @@ def uniformFloat (resolution : Nat) : IO Float := do
   return n.toFloat / resolution.toFloat
 
 /-
-The Random Nat generator to get a starting point on the gridworld,
-it goes from [0, dimMax - 1].
--/
-def uniformNat (dimMax : Nat) : IO Nat := do
-  if dimMax > 0 then
-    IO.rand 0 (dimMax - 1)
-  else
-    IO.rand 0 0
-
-/-
 An Enumeration for movement direction
 -/
 inductive Move
-| up
-| down
 | left
 | right
 deriving Repr
 
-
 /-
-This structure is an internal representation of the Gridworld for an agent working through
-the world. The worlds are tabular with discrete spaces. The behaviour of the Gridworld is
-managed by a function. This also will decide if the behaviour is episodic or continuous.
+This structure is an internal representation of the Random Walk to use the TD(0) algorithm
+for estimating state values. How this differes from the last example is this learns from
+experience and also updates the values
 -/
-structure GridWorld :=
-  nRows : Nat -- Number of rows in the Grid
-  nColumns : Nat -- Number of coluns in the Grid
-  stateValues := mkArray (nRows * nColumns) (0 : Float) -- Creating a array of state values
-  -- Start the policy by default of moving in all directions (actions) with an equal probability
-  -- for all states
-  policy := mkArray (nRows * nColumns) ({up := 0.25, down := 0.25, left := 0.25, right := 0.25} : Policy)
+structure RandomWalk :=
+  states : Nat -- Number of states
+  stateValues := mkArray (states) (0 : Float) -- Creating a array of state values
+  policy := ({left := 0.5, right := 0.5} : Policy)
 deriving Repr
 
 /-
@@ -67,347 +43,91 @@ A structure that carries the agent state, including the value of the world and a
 that it will take in each state
 -/
 structure Agent :=
-  row : Nat
-  column : Nat
-  states : GridWorld
+  currentPosition : Nat
+  environment : RandomWalk
 deriving Repr
 
-/-
-A function that displays all the agent states in a formatted way
--/
 def printAgentStates (a : Agent) :=
-  let range : Nat := a.states.nRows * a.states.nColumns
+  let range : Nat := a.environment.states
   for i in [0 : range] do
-    if i % a.states.nColumns = 0 then
-      IO.println "\n"
-    IO.print s!"{a.states.stateValues[i]!}\t"
+    IO.print s!"{a.environment.stateValues[i]!}\t"
 
-
-def agentPosition (a : Agent) : Nat :=
-  a.row * a.states.nColumns + a.column
-
-/-
-This function handles the behaviour of the Gridworld in Example 3.5 of
-Sutton, R. S., & Barto, A. G. (2018). Reinforcement Learning: An Introduction. MIT Press.
-This will be the environment that will be used to get state values and polices
--/
-def gridWorld35 (a : Agent) (m : Move) : Float × Agent :=
+def tdUpdate (a : Agent) (m : Move) (α γ : Float) : Agent :=
   match m with
-  | Move.up =>
-    let newAgent : Agent :=
-    {
-      row :=
-        if a.row = 0 && a.column = 1 then 4
-        else if a.row = 0 && a.column = 3 then 2
-        else if a.row = 0 then 0
-        else a.row - 1,
-      column := a.column,
-      states := a.states
-    }
-    let reward : Float :=
-      if a.row = 0 && a.column = 1 then
-        10
-      else if a.row = 0 && a.column = 3 then
-        5
-      else if a.row = 0 then
-        -1
-      else
-        0
-    (reward, newAgent)
-  | Move.down =>
-    let newAgent : Agent :=
-    {
-      row :=
-        if a.row = 0 && a.column = 1 then 4
-        else if a.row = 0 && a.column = 3 then 2
-        else if a.row + 1 = a.states.nRows then a.row
-        else a.row + 1,
-      column := a.column,
-      states := a.states
-    }
-    let reward : Float :=
-      if a.row = 0 && a.column = 1 then
-        10
-      else if a.row = 0 && a.column = 3 then
-        5
-      else if a.row + 1 = a.states.nRows then
-        -1
-      else
-        0
-    (reward, newAgent)
-  | Move.left =>
-    let newAgent : Agent :=
-    {
-      row :=
-        if a.row = 0 && a.column = 1 then 4
-        else if a.row = 0 && a.column = 3 then 2
-        else a.row,
-      column :=
-        if a.row = 0 && a.column = 1 then 1
-        else if a.row = 0 && a.column = 3 then 3
-        else if a.column = 0 then 0
-        else a.column - 1,
-      states := a.states
-    }
-    let reward : Float :=
-      if a.row = 0 && a.column = 1 then
-        10
-      else if a.row = 0 && a.column = 3 then
-        5
-      else if a.column = 0 then
-        -1
-      else
-        0
-    (reward, newAgent)
   | Move.right =>
-    let newAgent : Agent :=
-    {
-      row :=
-        if a.row = 0 && a.column = 1 then 4
-        else if a.row = 0 && a.column = 3 then 2
-        else a.row,
-      column :=
-        if a.row = 0 && a.column = 1 then 1
-        else if a.row = 0 && a.column = 3 then 3
-        else if a.column + 1 = a.states.nColumns then a.column
-        else a.column + 1,
-      states := a.states
-    }
+    let newPosition := a.currentPosition + 1
     let reward : Float :=
-      if a.row = 0 && a.column = 1 then
-        10
-      else if a.row = 0 && a.column = 3 then
-        5
-      else if a.column + 1 = a.states.nColumns then
-        -1
+      if newPosition = a.environment.states + 1 then
+        1
       else
         0
-    (reward, newAgent)
-
-/-
-This function handles the behaviour of the Gridworld in Example 4.1 of
-Sutton, R. S., & Barto, A. G. (2018). Reinforcement Learning: An Introduction. MIT Press.
-This will be the environment that will be used to get state values and polices of a
-terminating discrete process
--/
-def gridWorld41 (a : Agent) (m : Move) : Float × Agent :=
-  match m with
-  | Move.up =>
-    let newAgent : Agent :=
-    {
-      row :=
-        if a.row = 0 then 0
-        else a.row - 1,
-      column := a.column,
-      states := a.states
-    }
-    let reward : Float :=
-      if (newAgent.row = 0 && newAgent.column = 0) ||
-        (newAgent.row = newAgent.states.nRows - 1 && newAgent.column = newAgent.states.nColumns - 1) then
+    let Vs : Float := a.environment.stateValues[a.currentPosition - 1]!
+    let Vs': Float :=
+      if newPosition = a.environment.states + 1 then
         0
       else
-        -1
-    (reward, newAgent)
-  | Move.down =>
-    let newAgent : Agent :=
+        a.environment.stateValues[newPosition - 1]!
+    let newVs := Vs + α * (reward + γ * Vs' - Vs)
+    let newArr := a.environment.stateValues.set! (a.currentPosition - 1) newVs
     {
-      row :=
-        if a.row + 1 = a.states.nRows then a.row
-        else a.row + 1,
-      column := a.column,
-      states := a.states
-    }
-    let reward : Float :=
-      if (newAgent.row = 0 && newAgent.column = 0) ||
-        (newAgent.row = newAgent.states.nRows - 1 && newAgent.column = newAgent.states.nColumns - 1) then
-        0
-      else
-        -1
-    (reward, newAgent)
-  | Move.left =>
-    let newAgent : Agent :=
-    {
-      row := a.row,
-      column :=
-        if a.column = 0 then 0
-        else a.column - 1,
-      states := a.states
-    }
-    let reward : Float :=
-      if (newAgent.row = 0 && newAgent.column = 0) ||
-        (newAgent.row = newAgent.states.nRows - 1 && newAgent.column = newAgent.states.nColumns - 1) then
-        0
-      else
-        -1
-    (reward, newAgent)
-  | Move.right =>
-    let newAgent : Agent :=
-    {
-      row := a.row,
-      column :=
-        if a.column + 1 = a.states.nColumns then a.column
-        else a.column + 1,
-      states := a.states
-    }
-    let reward : Float :=
-      if (newAgent.row = 0 && newAgent.column = 0) ||
-        (newAgent.row = a.states.nRows - 1 && newAgent.column = a.states.nColumns - 1) then
-        0
-      else
-        -1
-    (reward, newAgent)
-
-/-
-Moving stochastically based off off thresholds
--/
-
-def chooseDirection (a : Agent) (resolution : Nat) : IO Move := do
-  let rand ← uniformFloat resolution
-  let goUp := a.states.policy[agentPosition a]!.up
-  let goDown := goUp + a.states.policy[agentPosition a]!.down
-  let goLeft := goDown + a.states.policy[agentPosition a]!.left
-  if rand < goUp then
-    return Move.up
-  else if rand < goDown then
-    return Move.down
-  else if rand < goLeft then
-    return Move.left
-  else
-    return Move.right
-
-/-
-Get a start position for a new agent stochastically
--/
-def startPosition (a : Agent) : IO Agent := do
-  let row ← uniformNat a.states.nRows
-  let column ← uniformNat a.states.nColumns
-  let a : Agent := {row := row, column := column, states := a.states}
-  return a
-
-/-
-  The function to find the maximum change between the state values to setup
-  a stopping condition.
--/
-
-partial def maxChange (agent1 : Agent) (agent2 : Agent) : Float :=
-  let range : Nat := agent1.states.nRows * agent1.states.nColumns
-  let rec loop (i : Nat) (maxDiff : Float) : Float :=
-    if i >= range then maxDiff
-    else
-      let v1 : Float := agent1.states.stateValues[i]!
-      let v2 : Float := agent2.states.stateValues[i]!
-      let diff : Float := abs (v1 - v2)
-      let newMaxDiff : Float := if diff > maxDiff then diff else maxDiff
-      loop (i + 1) newMaxDiff
-  loop 0 0
-
-/-
-The TD(0) Update algorithm
--/
-def tdUpdate (a : Agent) (newRow : Nat) (newColumn : Nat) (γ : Float) (α : Float) (R : Float) : Agent :=
-  let V_s' : Float := a.states.stateValues[agentPosition {row := newRow, column := newColumn, states := a.states}]!
-  let position : Nat := agentPosition a
-  let V_s : Float := a.states.stateValues[position]! + α * (R + γ * V_s' - a.states.stateValues[position]!)
-  let newArr := a.states.stateValues.set! position V_s
-  let newAgent : Agent :=
-    {
-      row := a.row,
-      column := a.column,
-      states :=
+      currentPosition := newPosition,
+      environment :=
       {
-        nRows := a.states.nRows,
-        nColumns := a.states.nColumns,
-        policy := a.states.policy,
-        stateValues := newArr
+        states := a.environment.states,
+        stateValues := newArr,
+        policy := a.environment.policy
       }
     }
-  newAgent
 
-/-
-Explore the 3.5 Gridworld
--/
-
-/-
-Explore the 4.1 GridWorld
--/
-
-partial def updateAgentTD41 (i : Nat) (agent : Agent) (γ : Float) : Agent :=
-  let range : Nat := agent.states.nRows * agent.states.nColumns
-  if i >= range then agent
-  else
-    let row := i / agent.states.nColumns
-    let column := i % agent.states.nRows
-    let tempAgent : Agent := {row := row, column := column, states := agent.states}
-
-    let reward_agent := gridWorld41 tempAgent Move.up
-    let reward := reward_agent.1 -- The reward
-    let π_up : Float := tempAgent.states.policy[i]!.up -- the probability of going up
-    let v_up : Float := tempAgent.states.stateValues[agentPosition reward_agent.2]!
-    let Vs_up : Float := π_up * (reward + γ * v_up)
-
-    let reward_agent := gridWorld41 tempAgent Move.down
-    let reward := reward_agent.1 -- The reward
-    let π_down : Float := tempAgent.states.policy[i]!.down -- the probability of going down
-    let v_down : Float := tempAgent.states.stateValues[agentPosition reward_agent.2]!
-    let Vs_down : Float := π_down * (reward + γ * v_down)
-
-    let reward_agent := gridWorld41 tempAgent Move.left
-    let reward := reward_agent.1 -- The reward
-    let π_left : Float := tempAgent.states.policy[i]!.left -- the probability of going left
-    let v_left : Float := tempAgent.states.stateValues[agentPosition reward_agent.2]!
-    let Vs_left : Float := π_left * (reward + γ * v_left)
-
-    let reward_agent := gridWorld41 tempAgent Move.right
-    let reward := reward_agent.1 -- The reward
-    let π_right : Float := tempAgent.states.policy[i]!.right -- the probability of going right
-    let v_right : Float := tempAgent.states.stateValues[agentPosition reward_agent.2]!
-    let Vs_right : Float := π_right * (reward + γ * v_right)
-
-    let Vs : Float := Vs_up + Vs_down + Vs_left + Vs_right
-    let position : Nat := agentPosition tempAgent
-    let newArr := agent.states.stateValues.set! position Vs
-    let newAgent : Agent :=
+  | Move.left =>
+    let newPosition := a.currentPosition - 1
+    let reward : Float := 0
+    let Vs : Float := a.environment.stateValues[a.currentPosition - 1]!
+    let Vs': Float :=
+      if newPosition = 0 then
+        0
+      else
+        a.environment.stateValues[newPosition - 1]!
+    let newVs := Vs + α * (reward + γ * Vs' - Vs)
+    let newArr := a.environment.stateValues.set! (a.currentPosition - 1) newVs
+    {
+      currentPosition := newPosition,
+      environment :=
       {
-        row := agent.row,
-        column := agent.column,
-        states :=
-        {
-          nRows := agent.states.nRows,
-          nColumns := agent.states.nColumns,
-          policy := agent.states.policy,
-          stateValues := newArr
-        }
+        states := a.environment.states,
+        stateValues := newArr,
+        policy := a.environment.policy
       }
-    updateAgentTD41 (i + 1) newAgent γ
-
-partial def tdLearning41 (a : Agent) (γ : Float) (maxDelta : Float) (maxIterations : Nat) : Agent :=
-  let rec iterate (iteration : Nat) (agent : Agent) : Agent :=
-    if iteration >= maxIterations then agent
-    else
-      let newAgent := updateAgentTD41 0 agent γ
-      if maxChange newAgent agent < maxDelta then newAgent
-      else iterate (iteration + 1) newAgent
-  iterate 0 a
-
-
-
-def myAgent35 : Agent := {row := 0, column := 0, states := {nRows := 5, nColumns := 5}}
-def myAgent41 : Agent := {row := 0, column := 0, states := {nRows := 4, nColumns := 4}}
+    }
 
 /-
-Testing out the random generator in what will be the final project file
+
 -/
+partial def runEpisode (a : Agent) (α γ : Float) : IO Agent := do
+  if a.currentPosition = 0 || a.currentPosition = a.environment.states + 1 then
+    return a
+  else do
+    let val ← uniformFloat 100
+    if val < a.environment.policy.left then
+      let tempAgent := tdUpdate a Move.left α γ
+      runEpisode tempAgent α γ
+    else do
+      let tempAgent := tdUpdate a Move.right α γ
+      runEpisode tempAgent α γ
+
+def runEpisodes (numEpisodes : Nat) (initialAgent : Agent) (α γ : Float) : IO Agent := do
+  if numEpisodes = 0 then
+    return initialAgent
+  else do
+    let a : Agent := {currentPosition := 3, environment := initialAgent.environment}
+    let updatedAgent ← runEpisode a α γ
+    runEpisodes (numEpisodes - 1) updatedAgent α γ
+
 def main : IO Unit := do
-  IO.println s!"Hey"
-
-
-
-
-
-
--- #eval startPosition myAgent35
--- #eval startPosition myAgent41
-
--- #eval uniformFloat 1000
--- #eval chooseDirection myAgent35 10000
--- #eval chooseDirection myAgent41 10000
+  let α : Float := 0.1
+  let γ : Float := 1
+  let initialAgent : Agent := {currentPosition := 3, environment := {states := 5}}
+  let finalAgent ← runEpisodes 1000 initialAgent α γ
+  IO.println "\n\nHere are the state values as \"Discovered\" by the TD(0) algorithm."
+  printAgentStates finalAgent
+  IO.println "\n\nDone!"
